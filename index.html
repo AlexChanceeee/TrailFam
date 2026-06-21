@@ -74,6 +74,9 @@ input[type=time],input[type=number]{width:100%;min-width:0;-webkit-appearance:no
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=time]:focus,input[type=number]:focus{outline:none;border-color:var(--sun);box-shadow:0 0 0 3px rgba(255,178,62,.14)}
 
+.pace2{display:flex;align-items:center;gap:8px}
+.pace2 input{flex:1;text-align:center}
+.pace2 .u{color:var(--mut);font-size:12.5px;flex:none}
 .slider{margin:15px 0}
 .slider .lab{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:8px;font-size:12.5px}
 .slider .lab>span:first-child{min-width:0}
@@ -192,7 +195,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
     <div class="eyebrow"><span class="n">2</span> Ton coureur</div>
     <div class="row">
       <div class="field"><label>Heure de départ</label><input type="time" id="start" value="06:00"></div>
-      <div class="field"><label>Allure (min/km)</label><input type="number" id="pace" value="6.5" step="0.1" min="2" max="20"></div>
+      <div class="field"><label>Allure (par km)</label><div class="pace2"><input type="number" id="paceMin" value="6" min="0" max="59" step="1" aria-label="minutes"><span class="u">min</span><input type="number" id="paceSec" value="30" min="0" max="59" step="5" aria-label="secondes"><span class="u">sec</span></div></div>
     </div>
 
     <div class="eyebrow"><span class="n">3</span> Détection des spots</div>
@@ -359,12 +362,15 @@ function detect(){
   setStatus(spots.length?`${spots.length} spot(s) trouvé(s). Ajuste les curseurs pour affiner instantanément.`:'Aucun spot avec ces réglages — augmente la distance route.', spots.length?'ok':'err');
 }
 
+function fmtPace(p){ const m=Math.floor(p), s=Math.round((p-m)*60);
+  return s? (s===60?(m+1)+' min':m+' min '+s+' s') : m+' min'; }
 function paceModel(){
   const [h,m]=$('#start').value.split(':').map(Number); const startMin=h*60+m;
   const calKm=parseFloat($('#calKm').value), calT=$('#calTime').value;
   if(calKm>0 && calT){ const [ch,cm]=calT.split(':').map(Number); const calMin=ch*60+cm;
     if(calMin>startMin) return {startMin, pace:(calMin-startMin)/calKm, recal:true}; }
-  return {startMin, pace:+$('#pace').value, recal:false};
+  const pmin=parseInt($('#paceMin').value)||0, psec=parseInt($('#paceSec').value)||0;
+  return {startMin, pace:pmin+psec/60, recal:false};
 }
 function passMinutes(distKm){ const pm=paceModel(); return pm.startMin + distKm*pm.pace; }
 function passTime(distKm){ const t=passMinutes(distKm); const hh=Math.floor(t/60)%24, mm=Math.round(t%60)%60;
@@ -443,14 +449,20 @@ function reachHtml(s){
   return `<div class="reach late">\u{1F697} ${drive} min \u00b7 trop tard de ${-margin} min</div>`;
 }
 function useMyPosition(){
-  if(!navigator.geolocation){ setStatus('G\u00e9olocalisation indisponible sur cet appareil.','err'); return; }
-  setStatus('Localisation en cours\u2026');
+  if(!window.isSecureContext){ setStatus("La position nécessite l'app ouverte via son lien https:// — pas en fichier local ni dans Documents.",'err'); return; }
+  if(!navigator.geolocation){ setStatus('Géolocalisation indisponible sur cet appareil.','err'); return; }
+  setStatus('Localisation en cours…');
   navigator.geolocation.getCurrentPosition(pos=>{
     userPos={lat:pos.coords.latitude, lon:pos.coords.longitude};
     if(userMarker) map.removeLayer(userMarker);
     userMarker=L.marker([userPos.lat,userPos.lon],{icon:L.divIcon({className:'',html:`<div style="width:18px;height:18px;border-radius:50%;background:#5BD1FF;border:3px solid #fff;box-shadow:0 0 0 4px rgba(91,209,255,.35)"></div>`,iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map).bindPopup('Ta position');
-    if(SPOTS.length) computeReach(); else setStatus('Position trouv\u00e9e. Lance \u00ab Trouver les spots \u00bb.','ok');
-  }, ()=>setStatus('Position refus\u00e9e ou indisponible.','err'), {enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+    if(SPOTS.length) computeReach(); else setStatus('Position trouvée. Lance « Trouver les spots » d\u2019abord.','ok');
+  }, err=>{
+    const m = err.code===1 ? "refusée. Autorise la localisation : Réglages iOS › Confidentialité et sécurité › Service de localisation › Safari (« Lorsque l’app est active »)."
+      : err.code===3 ? "délai dépassé — réessaie, de préférence en extérieur."
+      : "indisponible pour le moment.";
+    setStatus('Localisation '+m,'err');
+  }, {enableHighAccuracy:false, timeout:15000, maximumAge:60000});
 }
 async function computeReach(){
   if(!userPos || !SPOTS.length) return;
@@ -477,7 +489,12 @@ $('#tracks').onchange=()=>{ roadReady=false; if(trace.length) setStatus('Réglag
 $('#run').onclick=async()=>{ if(!trace.length) return; $('#run').disabled=true;
   if(!roadReady || lastQueryTracks!==$('#tracks').checked){ const ok=await fetchRoads(); if(!ok){ $('#run').disabled=false; return; } }
   setStatus('Analyse des spots accessibles…'); detect(); $('#run').disabled=false; };
-['start','pace','calKm','calTime'].forEach(id=>$('#'+id).onchange=()=>{ if(SPOTS.length) renderSpots(SPOTS); });
+function applyLive(){
+  const pm=paceModel();
+  if(SPOTS.length) renderSpots(SPOTS);
+  if(pm.recal) setStatus('Allure recalée : '+fmtPace(pm.pace)+'/km'+(SPOTS.length?' — horaires des spots mis à jour.':' — lance « Trouver les spots ».'),'ok');
+}
+['start','paceMin','paceSec','calKm','calTime'].forEach(id=>{ const el=$('#'+id); el.onchange=applyLive; el.oninput=applyLive; });
 
 const drop=$('#drop'),file=$('#file');
 drop.onclick=()=>file.click();
