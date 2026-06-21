@@ -1,0 +1,399 @@
+<!-- TrailFam — copilote de supporter de trail. Single-file PWA. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TrailFam — suis ton coureur sur le parcours</title>
+
+<meta name="theme-color" content="#15131C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TrailFam">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2315131C'/><rect x='14' y='7' width='2' height='19' fill='%23F2EEF7'/><polygon points='16,8 28,12 16,17' fill='%23FFB23E'/><circle cx='15' cy='25' r='3' fill='%23FF5A5F'/></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<style>
+:root{
+  --ink:#15131C; --surface:#1E1B27; --surface2:#272332; --line:#383143;
+  --sun:#FFB23E;        /* accent principal, interactif */
+  --sun-soft:#FFC76E;
+  --ember:#FF5A5F;      /* la trace de course */
+  --sky:#6EE7E0;        /* données / accessible */
+  --text:#F3F0F8; --mut:#9A93A8; --mut2:#6E6880;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--ink);color:var(--text);
+  font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'Space Mono',monospace}
+.app{display:grid;grid-template-columns:368px 1fr;grid-template-rows:auto 1fr auto;height:100%;min-height:0}
+
+/* ============ EN-TÊTE (signature topographique) ============ */
+header{grid-column:1/3;position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+  background:radial-gradient(120% 180% at 12% -40%, #3A2440 0%, #221A2E 38%, #15131C 75%)}
+header .contour{position:absolute;inset:0;width:100%;height:100%;opacity:.5;pointer-events:none}
+header .bar{position:relative;display:flex;align-items:center;gap:14px;padding:16px 22px}
+.brand{display:flex;align-items:center;gap:11px}
+.mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(150deg,var(--sun),var(--ember));
+  display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 4px 14px rgba(255,90,95,.3)}
+.mark svg{width:20px;height:20px}
+.wordmark{font-family:'Bricolage Grotesque';font-weight:800;font-size:25px;letter-spacing:-.02em;line-height:1}
+.wordmark .fam{color:var(--sun)}
+.slogan{color:var(--mut);font-size:12.5px;margin-left:4px;border-left:1px solid var(--line);padding-left:14px}
+@media(max-width:760px){.slogan{display:none}}
+
+/* ============ PANNEAU DE CONTRÔLE ============ */
+.controls{grid-row:2/3;grid-column:1/2;overflow-y:auto;padding:22px;border-right:1px solid var(--line);background:var(--surface)}
+.eyebrow{display:flex;align-items:center;gap:9px;margin:26px 0 13px;color:var(--mut);font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:600}
+.eyebrow:first-child{margin-top:0}
+.eyebrow .n{width:20px;height:20px;border-radius:6px;background:var(--surface2);color:var(--sun);
+  display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque';font-weight:700;font-size:11px}
+
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:22px 18px;text-align:center;cursor:pointer;
+  transition:.18s;background:linear-gradient(180deg,var(--surface2),#221E2C)}
+.drop:hover,.drop.drag{border-color:var(--sun);background:#2C2636}
+.drop .ic{font-size:22px;margin-bottom:6px;filter:grayscale(.2)}
+.drop .big{font-family:'Bricolage Grotesque';font-weight:700;font-size:14px}
+.drop .sub{color:var(--mut);font-size:12px;margin-top:5px}
+.linkish{background:none;border:none;color:var(--sun);cursor:pointer;font:inherit;font-weight:600;padding:0;border-bottom:1px solid transparent}
+.linkish:hover{border-bottom-color:var(--sun)}
+
+.row{display:flex;gap:12px;margin:12px 0}
+.field{flex:1}
+label{display:block;font-size:11px;color:var(--mut);margin-bottom:6px;letter-spacing:.03em;font-weight:500}
+input[type=time],input[type=number]{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:11px 12px;font-family:'Space Mono',monospace;font-size:15px;transition:.15s}
+input[type=time]:focus,input[type=number]:focus{outline:none;border-color:var(--sun);box-shadow:0 0 0 3px rgba(255,178,62,.14)}
+
+.slider{margin:15px 0}
+.slider .lab{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12.5px}
+.slider .val{color:var(--sun);font-family:'Space Mono',monospace;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--sun);height:4px}
+.check{display:flex;gap:9px;align-items:center;cursor:pointer;font-size:13px;color:var(--text);margin-top:4px}
+.check input{accent-color:var(--sun);width:16px;height:16px}
+
+.go{width:100%;margin-top:22px;padding:15px;border:none;border-radius:12px;cursor:pointer;transition:.18s;
+  background:linear-gradient(135deg,var(--sun),var(--sun-soft));color:#241704;
+  font-family:'Bricolage Grotesque';font-weight:800;font-size:15px;letter-spacing:.01em;
+  box-shadow:0 6px 20px rgba(255,178,62,.26)}
+.go:hover{transform:translateY(-1px);box-shadow:0 9px 26px rgba(255,178,62,.34)}
+.go:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.status{margin-top:14px;font-size:12.5px;color:var(--mut);min-height:18px;line-height:1.45}
+.status.err{color:#ff8f8f}
+.status.ok{color:var(--sky)}
+
+/* ============ CARTE ============ */
+.mapwrap{grid-row:2/3;grid-column:2/3;position:relative;min-height:0;padding:14px}
+#map{width:100%;height:100%;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.leaflet-container{background:#0c0a12;font-family:Inter}
+.leaflet-popup-content-wrapper{background:var(--surface2);color:var(--text);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.leaflet-popup-content{margin:11px 13px;font-size:13px;line-height:1.5}
+.leaflet-popup-tip{background:var(--surface2)}
+.leaflet-popup-content b{color:var(--sun)}
+.leaflet-popup-content a{color:var(--sun);font-weight:600}
+.leaflet-bar{border:none!important;box-shadow:0 4px 16px rgba(0,0,0,.45)!important;border-radius:10px!important;overflow:hidden}
+.leaflet-bar a{background:var(--surface2)!important;color:var(--text)!important;border-bottom:1px solid var(--line)!important;width:34px!important;height:34px!important;line-height:34px!important;font-size:17px!important}
+.leaflet-bar a:hover{background:#322B3E!important;color:var(--sun)!important}
+.leaflet-control-zoom{margin:14px 0 0 14px!important}
+.tf-recenter{display:flex!important;align-items:center;justify-content:center;background:var(--surface2)!important;color:var(--text)!important;width:34px!important;height:34px!important;border-radius:10px!important;box-shadow:0 4px 16px rgba(0,0,0,.45)!important;margin:10px 0 0 14px!important}
+.tf-recenter:hover{background:#322B3E!important;color:var(--sun)!important}
+.tf-recenter svg{width:17px;height:17px}
+.leaflet-control-attribution{background:rgba(21,19,28,.78)!important;color:var(--mut2)!important;border-radius:7px 0 0 0}
+.leaflet-control-attribution a{color:var(--mut)!important}
+
+/* ============ PROFIL D'ALTITUDE (signature) ============ */
+.profile{grid-column:1/3;grid-row:3/4;height:138px;border-top:1px solid var(--line);background:var(--surface);position:relative;padding:10px 16px 8px}
+.profile .ttl{position:absolute;top:11px;left:16px;font-family:'Bricolage Grotesque';font-weight:700;font-size:10px;letter-spacing:.16em;color:var(--mut);text-transform:uppercase}
+.profile svg{width:100%;height:100%;display:block}
+.profile .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut2);font-size:12.5px}
+
+/* ============ VOLET DES POINTS ============ */
+.spots{position:absolute;top:26px;right:26px;width:300px;max-height:calc(100% - 52px);overflow-y:auto;z-index:600;display:none;
+  border-radius:var(--r);box-shadow:0 16px 44px rgba(0,0,0,.5);border:1px solid var(--line)}
+.spots.show{display:block}
+.spots .hd{font-family:'Bricolage Grotesque';font-weight:800;font-size:12px;letter-spacing:.04em;
+  color:#241704;background:linear-gradient(135deg,var(--sun),var(--sun-soft));padding:12px 14px}
+.card{background:var(--surface2);border-top:1px solid var(--line);padding:13px 14px;cursor:pointer;transition:.14s;display:flex;align-items:center;gap:13px}
+.card:hover{background:#322B3E}
+.num{font-family:'Bricolage Grotesque';font-weight:800;font-size:19px;color:var(--sun);min-width:26px;text-align:center}
+.card .meta{flex:1;min-width:0}
+.card .top{display:flex;justify-content:space-between;align-items:baseline}
+.card .km{font-family:'Space Mono',monospace;font-weight:700;font-size:13.5px}
+.card .time{font-family:'Space Mono',monospace;color:var(--sun);font-size:14px;font-weight:700}
+.card .road{color:var(--mut);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.pill{display:inline-block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:5px;
+  background:var(--ink);color:var(--sky);border:1px solid var(--line);margin-left:6px}
+.pill.track{color:var(--sun-soft)}
+.hint{font-size:11px;color:var(--mut2);margin-top:8px;line-height:1.45}
+.coords{display:flex;align-items:center;gap:12px;margin-top:7px;flex-wrap:wrap}
+.cval{font-family:'Space Mono',monospace;font-size:11.5px;color:var(--sky);cursor:pointer;border-bottom:1px dashed var(--line);white-space:nowrap}
+.cval:hover{color:var(--text);border-bottom-color:var(--sky)}
+.gmaps{font-size:11px;font-weight:600;color:var(--sun);text-decoration:none;white-space:nowrap}
+.gmaps:hover{text-decoration:underline}
+
+@media(max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}
+  header{grid-column:1}
+  .controls{grid-row:2;grid-column:1;border-right:none;border-bottom:1px solid var(--line);max-height:44vh}
+  .mapwrap{grid-row:3;grid-column:1;padding:10px}
+  .profile{grid-column:1;grid-row:4}
+  .spots{position:static;width:auto;max-height:none;margin:12px;box-shadow:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header>
+    <svg class="contour" viewBox="0 0 1200 120" preserveAspectRatio="none">
+      <g fill="none" stroke="#FFB23E" stroke-width="1">
+        <path d="M0,96 C160,70 320,118 520,86 C720,54 900,108 1200,70" opacity=".22"/>
+        <path d="M0,74 C200,44 360,92 560,62 C760,32 980,84 1200,48" opacity=".16"/>
+        <path d="M0,52 C220,24 380,66 600,40 C820,14 1020,60 1200,28" opacity=".11"/>
+      </g>
+    </svg>
+    <div class="bar">
+      <div class="brand">
+        <div class="mark"><svg viewBox="0 0 24 24"><rect x="10" y="3" width="1.8" height="17" fill="#241704"/><polygon points="11.8,4 22,7 11.8,11.5" fill="#241704"/></svg></div>
+        <div class="wordmark">Trail<span class="fam">Fam</span></div>
+      </div>
+      <div class="slogan">suis et encourage ton coureur, là où c'est accessible</div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="eyebrow"><span class="n">1</span> Le parcours</div>
+    <div class="drop" id="drop">
+      <input type="file" id="file" accept=".gpx" hidden>
+      <div class="ic">🏔️</div>
+      <div class="big">Déposer la trace GPX de la course</div>
+      <div class="sub">ou cliquer pour choisir · <button class="linkish" id="demo">essayer un exemple</button></div>
+    </div>
+
+    <div class="eyebrow"><span class="n">2</span> Ton coureur</div>
+    <div class="row">
+      <div class="field"><label>Heure de départ</label><input type="time" id="start" value="06:00"></div>
+      <div class="field"><label>Allure (min/km)</label><input type="number" id="pace" value="6.5" step="0.1" min="2" max="20"></div>
+    </div>
+
+    <div class="eyebrow"><span class="n">3</span> Détection des spots</div>
+    <div class="slider"><div class="lab"><span>Route accessible à moins de</span><span class="val" id="thrV">120 m</span></div>
+      <input type="range" id="thr" min="30" max="400" step="10" value="120">
+      <div class="hint" id="thrH">On garde un endroit si une route carrossable passe à moins de 120 m de la trace. Plus la valeur est haute, plus il y a de spots.</div></div>
+    <div class="slider"><div class="lab"><span>Espacement min entre spots</span><span class="val" id="gapV">2.0 km</span></div>
+      <input type="range" id="gap" min="0.5" max="10" step="0.5" value="2">
+      <div class="hint">Évite d'afficher plusieurs spots trop proches les uns des autres.</div></div>
+    <label class="check"><input type="checkbox" id="tracks"> inclure pistes / chemins 4x4</label>
+
+    <button class="go" id="run" disabled>Trouver les spots</button>
+    <div class="status" id="status">Importe une trace pour commencer.</div>
+  </div>
+
+  <div class="mapwrap">
+    <div id="map"></div>
+    <div class="spots" id="spots"></div>
+  </div>
+
+  <div class="profile">
+    <div class="ttl">Profil & spots de passage</div>
+    <div class="empty" id="profEmpty">le profil d'altitude s'affichera ici</div>
+    <svg id="prof" viewBox="0 0 1000 120" preserveAspectRatio="none" style="display:none"></svg>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const map=L.map('map',{zoomControl:true}).setView([45.92,6.87],12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+
+const DEFAULT_VIEW={center:[45.92,6.87],zoom:12};
+const RecenterCtl=L.Control.extend({options:{position:'topleft'},
+  onAdd:function(){
+    const b=L.DomUtil.create('a','tf-recenter'); b.href='#'; b.title="Vue d'ensemble du parcours";
+    b.innerHTML="<svg viewBox='0 0 20 20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4'/></svg>";
+    L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{
+      if(traceLine) map.fitBounds(traceLine.getBounds(),{padding:[44,44]});
+      else map.setView(DEFAULT_VIEW.center,DEFAULT_VIEW.zoom);
+    });
+    return b;
+  }});
+map.addControl(new RecenterCtl());
+
+let trace=[], traceLine=null, spotMarkers=[], SPOTS=[];
+let roadGrid=null, roadCell=0.005, roadReady=false, lastQueryTracks=false;
+
+function hav(a,b){const R=6371000,t=Math.PI/180;
+  const dLat=(b.lat-a.lat)*t,dLon=(b.lon-a.lon)*t,la1=a.lat*t,la2=b.lat*t;
+  const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));}
+
+function parseGPX(text){
+  const doc=new DOMParser().parseFromString(text,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('fichier illisible');
+  let pts=[...doc.querySelectorAll('trkpt')]; if(!pts.length) pts=[...doc.querySelectorAll('rtept')];
+  if(!pts.length) throw new Error('aucun point de trace trouvé');
+  const out=[]; let dist=0,prev=null;
+  for(const p of pts){
+    const lat=parseFloat(p.getAttribute('lat')),lon=parseFloat(p.getAttribute('lon'));
+    if(isNaN(lat)||isNaN(lon)) continue;
+    const e=p.querySelector('ele'); const ele=e?parseFloat(e.textContent):0;
+    if(prev) dist+=hav(prev,{lat,lon});
+    out.push({lat,lon,ele,distKm:dist/1000}); prev={lat,lon};
+  }
+  return out;
+}
+
+function setStatus(t,cls){const s=$('#status');s.textContent=t;s.className='status'+(cls?' '+cls:'');}
+
+function loadTrace(text){
+  try{
+    trace=parseGPX(text);
+    if(traceLine) map.removeLayer(traceLine);
+    traceLine=L.polyline(trace.map(p=>[p.lat,p.lon]),{color:'#FF5A5F',weight:4,opacity:.92}).addTo(map);
+    map.fitBounds(traceLine.getBounds(),{padding:[44,44]});
+    drawProfile();
+    setStatus(`Trace chargée · ${trace[trace.length-1].distKm.toFixed(1)} km · ${trace.length} points. Prêt à analyser.`,'ok');
+    roadReady=false; $('#run').disabled=false; clearSpots();
+  }catch(e){ setStatus('Erreur : '+e.message,'err'); }
+}
+
+function drawProfile(spots){
+  const svg=$('#prof'); $('#profEmpty').style.display='none'; svg.style.display='block';
+  const W=1000,H=120,pad=4, eles=trace.map(p=>p.ele), maxKm=trace[trace.length-1].distKm||1;
+  let lo=Math.min(...eles),hi=Math.max(...eles); if(hi-lo<1) hi=lo+1;
+  const x=km=>pad+(km/maxKm)*(W-2*pad), y=e=>H-pad-((e-lo)/(hi-lo))*(H-2*pad-16);
+  let d=`M ${x(0)} ${H} `; for(const p of trace) d+=`L ${x(p.distKm).toFixed(1)} ${y(p.ele).toFixed(1)} `;
+  d+=`L ${x(maxKm)} ${H} Z`;
+  let html=`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FF5A5F" stop-opacity=".4"/><stop offset="1" stop-color="#FF5A5F" stop-opacity="0"/></linearGradient></defs>`;
+  html+=`<path d="${d}" fill="url(#g)" stroke="#FF5A5F" stroke-width="1.6"/>`;
+  if(spots) spots.forEach((s,i)=>{const px=x(s.distKm).toFixed(1),py=y(s.ele).toFixed(1);
+    html+=`<line x1="${px}" y1="${py}" x2="${px}" y2="16" stroke="#FFB23E" stroke-width="1" opacity=".55"/>
+      <circle cx="${px}" cy="${py}" r="3.5" fill="#FFB23E"/>
+      <g style="cursor:pointer" onclick="flyTo(${i})"><rect x="${px-9}" y="3" width="18" height="16" rx="4" fill="#FFB23E"/>
+      <text x="${px}" y="15" text-anchor="middle" font-family="Space Mono" font-size="10" font-weight="700" fill="#241704">${i+1}</text></g>`;});
+  svg.innerHTML=html;
+}
+
+function clearSpots(){spotMarkers.forEach(m=>map.removeLayer(m));spotMarkers=[];$('#spots').classList.remove('show');$('#spots').innerHTML='';}
+
+async function fetchRoads(){
+  const withTracks=$('#tracks').checked;
+  let minLat=90,maxLat=-90,minLon=180,maxLon=-180;
+  for(const p of trace){minLat=Math.min(minLat,p.lat);maxLat=Math.max(maxLat,p.lat);minLon=Math.min(minLon,p.lon);maxLon=Math.max(maxLon,p.lon);}
+  const pad=0.01; minLat-=pad;minLon-=pad;maxLat+=pad;maxLon+=pad;
+  let types='motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street|road';
+  if(withTracks) types+='|track';
+  const q=`[out:json][timeout:60];way["highway"~"^(${types})$"](${minLat},${minLon},${maxLat},${maxLon});out geom;`;
+  const ENDPOINTS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+  async function tryFetch(url){
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),35000);
+    try{ const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),signal:ctrl.signal}); clearTimeout(to);
+      if(r.status===429||r.status===504) throw {kind:'busy'}; if(!r.ok) throw {kind:'http'}; return await r.json();
+    }catch(e){ clearTimeout(to); if(e.name==='AbortError') throw {kind:'timeout'}; if(e.kind) throw e; throw {kind:'blocked'}; }
+  }
+  let data=null,lastErr=null;
+  for(let i=0;i<ENDPOINTS.length;i++){ setStatus(`Recherche des routes… (serveur ${i+1}/${ENDPOINTS.length})`);
+    try{ data=await tryFetch(ENDPOINTS[i]); break; }catch(e){ lastErr=e; if(!['blocked','timeout','busy'].includes(e.kind)) break; } }
+  if(!data){ const m=lastErr?.kind==='blocked'?"connexion bloquée. Ouvre l'app via son lien (https), pas en fichier local."
+      :lastErr?.kind==='timeout'?"serveurs lents, réessaie dans un instant.":"serveurs occupés, réessaie dans 30 s.";
+    setStatus('Erreur : '+m,'err'); return false; }
+  const roadPts=[];
+  for(const w of (data.elements||[])){ if(!w.geometry) continue;
+    const name=w.tags?.ref||w.tags?.name||'route sans nom', hw=w.tags?.highway||'';
+    for(const g of w.geometry) roadPts.push({lat:g.lat,lon:g.lon,name,hw}); }
+  if(!roadPts.length){ setStatus('Aucune route trouvée dans cette zone.','err'); return false; }
+  roadGrid=new Map();
+  for(const rp of roadPts){const k=Math.round(rp.lat/roadCell)+'_'+Math.round(rp.lon/roadCell);(roadGrid.get(k)||roadGrid.set(k,[]).get(k)).push(rp);}
+  roadReady=true; lastQueryTracks=withTracks; return true;
+}
+
+function detect(){
+  if(!roadReady||!trace.length) return;
+  const thr=+$('#thr').value, gapKm=+$('#gap').value, cell=roadCell;
+  function nearestRoad(p){const cla=Math.round(p.lat/cell),clo=Math.round(p.lon/cell);let best=null,bd=Infinity;
+    for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const arr=roadGrid.get((cla+i)+'_'+(clo+j));if(!arr)continue;
+      for(const rp of arr){const d=hav(p,rp);if(d<bd){bd=d;best=rp;}}}return {dist:bd,road:best};}
+  const cands=[]; let lastKm=-1;
+  for(const p of trace){ if(p.distKm-lastKm<0.2&&lastKm>=0) continue; lastKm=p.distKm;
+    const nr=nearestRoad(p); if(nr.road&&nr.dist<=thr) cands.push({...p,roadDist:nr.dist,roadName:nr.road.name,hw:nr.road.hw}); }
+  const clustered=[]; let cur=[];
+  for(let i=0;i<cands.length;i++){
+    if(cur.length&&cands[i].distKm-cur[cur.length-1].distKm>0.4){clustered.push(cur.reduce((a,b)=>b.roadDist<a.roadDist?b:a));cur=[];}
+    cur.push(cands[i]); }
+  if(cur.length) clustered.push(cur.reduce((a,b)=>b.roadDist<a.roadDist?b:a));
+  const spots=[];
+  for(const c of clustered){
+    if(spots.length&&c.distKm-spots[spots.length-1].distKm<gapKm){ if(c.roadDist<spots[spots.length-1].roadDist) spots[spots.length-1]=c; continue; }
+    spots.push(c); }
+  renderSpots(spots); drawProfile(spots);
+  setStatus(spots.length?`${spots.length} spot(s) trouvé(s). Ajuste les curseurs pour affiner instantanément.`:'Aucun spot avec ces réglages — augmente la distance route.', spots.length?'ok':'err');
+}
+
+function passTime(distKm){
+  const [h,m]=$('#start').value.split(':').map(Number), pace=+$('#pace').value, total=h*60+m+distKm*pace;
+  const hh=Math.floor(total/60)%24,mm=Math.round(total%60);
+  return String(hh).padStart(2,'0')+'h'+String(mm).padStart(2,'0');
+}
+
+function gmapsUrl(s){ return `https://www.google.com/maps/dir/?api=1&destination=${s.lat.toFixed(6)},${s.lon.toFixed(6)}`; }
+window.copyCoord=(e,txt)=>{ e.stopPropagation();
+  const t=e.currentTarget, old=t.textContent, done=()=>{ t.textContent='copié ✓'; setTimeout(()=>t.textContent=old,1200); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(done); else done();
+};
+function renderSpots(spots){
+  SPOTS=spots; spotMarkers.forEach(m=>map.removeLayer(m)); spotMarkers=[];
+  const box=$('#spots'); if(!spots.length){box.classList.remove('show');box.innerHTML='';return;}
+  let html=`<div class="hd">${spots.length} spots pour voir ton coureur</div>`;
+  spots.forEach((s,i)=>{ const isT=s.hw==='track'; const co=`${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`;
+    html+=`<div class="card" onclick="flyTo(${i})"><div class="num">${i+1}</div><div class="meta">
+      <div class="top"><span class="km">km ${s.distKm.toFixed(1)}</span><span class="time">${passTime(s.distKm)}</span></div>
+      <div class="road">${s.roadName} · ${Math.round(s.roadDist)} m<span class="pill ${isT?'track':''}">${isT?'piste 4x4':'route'}</span></div>
+      <div class="coords"><span class="cval" title="copier les coordonnées" onclick="copyCoord(event,'${s.lat.toFixed(6)},${s.lon.toFixed(6)}')">${co}</span>
+        <a class="gmaps" href="${gmapsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Itinéraire ↗</a></div>
+    </div></div>`; });
+  box.innerHTML=html; box.classList.add('show');
+  spots.forEach((s,i)=>{
+    const ic=L.divIcon({className:'',html:`<div style="background:#FFB23E;color:#241704;font-family:'Space Mono';font-weight:700;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #15131C;box-shadow:0 3px 8px rgba(0,0,0,.5)"><span style="transform:rotate(45deg)">${i+1}</span></div>`,iconSize:[26,26],iconAnchor:[13,26]});
+    spotMarkers.push(L.marker([s.lat,s.lon],{icon:ic}).addTo(map)
+      .bindPopup(`<b>Spot ${i+1}</b> — km ${s.distKm.toFixed(1)}<br>Passage estimé : <b>${passTime(s.distKm)}</b><br>${s.roadName} · à ${Math.round(s.roadDist)} m<br><span class="mono">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</span><br><a href="${gmapsUrl(s)}" target="_blank" rel="noopener">Ouvrir dans Google Maps ↗</a>`));
+  });
+}
+window.flyTo=i=>{const s=SPOTS[i];map.flyTo([s.lat,s.lon],16);spotMarkers[i].openPopup();};
+
+$('#thr').oninput=e=>{ $('#thrV').textContent=e.target.value+' m';
+  $('#thrH').textContent=`On garde un endroit si une route carrossable passe à moins de ${e.target.value} m de la trace. Plus la valeur est haute, plus il y a de spots.`; };
+$('#gap').oninput=e=>$('#gapV').textContent=(+e.target.value).toFixed(1)+' km';
+$('#thr').onchange=()=>{ if(roadReady) detect(); };
+$('#gap').onchange=()=>{ if(roadReady) detect(); };
+$('#tracks').onchange=()=>{ roadReady=false; if(trace.length) setStatus('Réglage modifié — reclique sur « Trouver les spots ».'); };
+$('#run').onclick=async()=>{ if(!trace.length) return; $('#run').disabled=true;
+  if(!roadReady || lastQueryTracks!==$('#tracks').checked){ const ok=await fetchRoads(); if(!ok){ $('#run').disabled=false; return; } }
+  setStatus('Analyse des spots accessibles…'); detect(); $('#run').disabled=false; };
+['start','pace'].forEach(id=>$('#'+id).onchange=()=>{ if(SPOTS.length) renderSpots(SPOTS); });
+
+const drop=$('#drop'),file=$('#file');
+drop.onclick=()=>file.click();
+file.onchange=e=>{const f=e.target.files[0]; if(f) f.text().then(loadTrace);};
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) f.text().then(loadTrace);});
+
+$('#demo').onclick=e=>{e.stopPropagation();
+  const base=[[45.9237,6.8694],[45.9301,6.8602],[45.9388,6.8551],[45.9461,6.8623],[45.9502,6.8765],
+    [45.9468,6.8901],[45.9379,6.8954],[45.9281,6.8932],[45.9203,6.8848],[45.9168,6.8712],[45.9237,6.8694]];
+  let gpx=`<?xml version="1.0"?><gpx version="1.1"><trk><name>exemple</name><trkseg>`;
+  for(let i=0;i<base.length-1;i++) for(let t=0;t<20;t++){
+    const a=base[i],b=base[i+1],f=t/20, lat=a[0]+(b[0]-a[0])*f, lon=a[1]+(b[1]-a[1])*f,
+      ele=1035+Math.sin((i*20+t)/12)*180+Math.cos((i*20+t)/5)*30;
+    gpx+=`<trkpt lat="${lat.toFixed(6)}" lon="${lon.toFixed(6)}"><ele>${ele.toFixed(0)}</ele></trkpt>`; }
+  gpx+=`</trkseg></trk></gpx>`; loadTrace(gpx);
+};
+</script>
