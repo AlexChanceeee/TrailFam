@@ -91,6 +91,12 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
 .status{margin-top:14px;font-size:12.5px;color:var(--mut);min-height:18px;line-height:1.45}
 .status.err{color:#ff8f8f}
 .status.ok{color:var(--sky)}
+.go.ghost{background:transparent;border:1px solid var(--line);color:var(--text);box-shadow:none;margin-top:12px;font-size:14px}
+.go.ghost:hover{background:var(--surface2);border-color:var(--sun);color:var(--sun);transform:none;box-shadow:none}
+.reach{margin-top:7px;font-size:11.5px;font-family:'Space Mono',monospace;padding:5px 8px;border-radius:7px;line-height:1.35}
+.reach.ok{background:rgba(123,224,168,.14);color:#7BE0A8}
+.reach.late{background:rgba(255,90,95,.15);color:#ff8f8f}
+.reach.passed{background:var(--ink);color:var(--mut)}
 
 /* ============ CARTE ============ */
 .mapwrap{grid-row:2/3;grid-column:2/3;position:relative;min-height:0;padding:14px}
@@ -200,6 +206,15 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
 
     <button class="go" id="run" disabled>Trouver les spots</button>
     <div class="status" id="status">Importe une trace pour commencer.</div>
+
+    <div class="eyebrow"><span class="n">4</span> Suivi en direct <span style="color:var(--mut2);text-transform:none;letter-spacing:0;font-weight:400">· optionnel</span></div>
+    <div class="row">
+      <div class="field"><label>Dernier point connu (km)</label><input type="number" id="calKm" placeholder="42" step="0.1" min="0"></div>
+      <div class="field"><label>Heure de passage</label><input type="time" id="calTime"></div>
+    </div>
+    <div class="hint">Recale l'allure d'après un temps de passage réel (suivi officiel, appel d'un ravito…). Les horaires des spots s'ajustent.</div>
+    <button class="go ghost" id="locate">📍 Utiliser ma position</button>
+    <div class="hint">Calcule, depuis où tu es, le temps de route vers chaque spot et te dit lesquels tu peux atteindre avant ton coureur.</div>
   </div>
 
   <div class="mapwrap">
@@ -235,6 +250,7 @@ window.addEventListener('resize',()=>map.invalidateSize());
 
 let trace=[], traceLine=null, spotMarkers=[], SPOTS=[];
 let roadGrid=null, roadCell=0.005, roadReady=false, lastQueryTracks=false;
+let userPos=null, userMarker=null;
 
 function hav(a,b){const R=6371000,t=Math.PI/180;
   const dLat=(b.lat-a.lat)*t,dLon=(b.lon-a.lon)*t,la1=a.lat*t,la2=b.lat*t;
@@ -343,11 +359,16 @@ function detect(){
   setStatus(spots.length?`${spots.length} spot(s) trouvé(s). Ajuste les curseurs pour affiner instantanément.`:'Aucun spot avec ces réglages — augmente la distance route.', spots.length?'ok':'err');
 }
 
-function passTime(distKm){
-  const [h,m]=$('#start').value.split(':').map(Number), pace=+$('#pace').value, total=h*60+m+distKm*pace;
-  const hh=Math.floor(total/60)%24,mm=Math.round(total%60);
-  return String(hh).padStart(2,'0')+'h'+String(mm).padStart(2,'0');
+function paceModel(){
+  const [h,m]=$('#start').value.split(':').map(Number); const startMin=h*60+m;
+  const calKm=parseFloat($('#calKm').value), calT=$('#calTime').value;
+  if(calKm>0 && calT){ const [ch,cm]=calT.split(':').map(Number); const calMin=ch*60+cm;
+    if(calMin>startMin) return {startMin, pace:(calMin-startMin)/calKm, recal:true}; }
+  return {startMin, pace:+$('#pace').value, recal:false};
 }
+function passMinutes(distKm){ const pm=paceModel(); return pm.startMin + distKm*pm.pace; }
+function passTime(distKm){ const t=passMinutes(distKm); const hh=Math.floor(t/60)%24, mm=Math.round(t%60)%60;
+  return String(hh).padStart(2,'0')+'h'+String(mm).padStart(2,'0'); }
 
 function gmapsUrl(s){ return `https://www.google.com/maps/dir/?api=1&destination=${s.lat.toFixed(6)},${s.lon.toFixed(6)}`; }
 window.copyCoord=(e,txt)=>{ e.stopPropagation();
@@ -400,7 +421,7 @@ function renderSpots(spots){
       <div class="top"><span class="km">km ${s.distKm.toFixed(1)}</span><span class="time">${passTime(s.distKm)}</span></div>
       <div class="road"><span id="sa${i}">${s.addr?spotName(s):'localisation\u2026'}</span> \u00b7 ${Math.round(s.roadDist)} m<span class="pill ${isT?'track':''}">${isT?'piste 4x4':'route'}</span></div>
       <div class="coords"><span class="cval" title="copier les coordonn\u00e9es" onclick="copyCoord(event,'${s.lat.toFixed(6)},${s.lon.toFixed(6)}')">${co}</span>
-        <a class="gmaps" href="${gmapsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Itin\u00e9raire \u2197</a></div>
+        <a class="gmaps" href="${gmapsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Itin\u00e9raire \u2197</a></div>${reachHtml(s)}
     </div></div>`; });
   box.innerHTML=html; box.classList.add('show');
   spots.forEach((s,i)=>{
@@ -411,6 +432,42 @@ function renderSpots(spots){
 }
 window.flyTo=i=>{const s=SPOTS[i];map.flyTo([s.lat,s.lon],16);spotMarkers[i].openPopup();};
 
+/* ---- couche live : position + temps de trajet voiture (OSRM) ---- */
+function reachHtml(s){
+  if(s.driveMin==null) return '';
+  const d=new Date(), nowMin=d.getHours()*60+d.getMinutes();
+  const passMin=passMinutes(s.distKm), drive=Math.round(s.driveMin), arrive=nowMin+s.driveMin;
+  if(passMin < nowMin-1) return `<div class="reach passed">\u{1F3C3} d\u00e9j\u00e0 pass\u00e9 \u00b7 \u{1F697} ${drive} min de toi</div>`;
+  const margin=Math.round(passMin-arrive);
+  if(margin>=0) return `<div class="reach ok">\u{1F697} ${drive} min \u00b7 tu y serais ${margin} min avant lui</div>`;
+  return `<div class="reach late">\u{1F697} ${drive} min \u00b7 trop tard de ${-margin} min</div>`;
+}
+function useMyPosition(){
+  if(!navigator.geolocation){ setStatus('G\u00e9olocalisation indisponible sur cet appareil.','err'); return; }
+  setStatus('Localisation en cours\u2026');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userPos={lat:pos.coords.latitude, lon:pos.coords.longitude};
+    if(userMarker) map.removeLayer(userMarker);
+    userMarker=L.marker([userPos.lat,userPos.lon],{icon:L.divIcon({className:'',html:`<div style="width:18px;height:18px;border-radius:50%;background:#5BD1FF;border:3px solid #fff;box-shadow:0 0 0 4px rgba(91,209,255,.35)"></div>`,iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map).bindPopup('Ta position');
+    if(SPOTS.length) computeReach(); else setStatus('Position trouv\u00e9e. Lance \u00ab Trouver les spots \u00bb.','ok');
+  }, ()=>setStatus('Position refus\u00e9e ou indisponible.','err'), {enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+}
+async function computeReach(){
+  if(!userPos || !SPOTS.length) return;
+  setStatus('Calcul des temps de trajet en voiture\u2026');
+  const coords=[`${userPos.lon},${userPos.lat}`].concat(SPOTS.map(s=>`${s.lon},${s.lat}`)).join(';');
+  try{
+    const r=await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?sources=0&annotations=duration`);
+    if(!r.ok) throw 0; const j=await r.json(); const durs=(j.durations&&j.durations[0])||[];
+    SPOTS.forEach((s,i)=>{ const v=durs[i+1]; s.driveMin=(v==null)?null:v/60; });
+    renderSpots(SPOTS);
+    const d=new Date(), nowMin=d.getHours()*60+d.getMinutes();
+    const next=SPOTS.find(s=>s.driveMin!=null && passMinutes(s.distKm)>=nowMin && (nowMin+s.driveMin)<=passMinutes(s.distKm));
+    setStatus(next?`Prochain spot atteignable : Spot ${SPOTS.indexOf(next)+1} (km ${next.distKm.toFixed(1)}).`:'Position prise en compte \u2014 vois les marges sur chaque spot.','ok');
+  }catch(e){ setStatus('Trajets indisponibles (serveur de calcul occup\u00e9), r\u00e9essaie.','err'); }
+}
+$('#locate').onclick=useMyPosition;
+
 $('#thr').oninput=e=>{ $('#thrV').textContent=e.target.value+' m';
   $('#thrH').textContent=`On garde un endroit si une route carrossable passe à moins de ${e.target.value} m de la trace. Plus la valeur est haute, plus il y a de spots.`; };
 $('#gap').oninput=e=>$('#gapV').textContent=(+e.target.value).toFixed(1)+' km';
@@ -420,7 +477,7 @@ $('#tracks').onchange=()=>{ roadReady=false; if(trace.length) setStatus('Réglag
 $('#run').onclick=async()=>{ if(!trace.length) return; $('#run').disabled=true;
   if(!roadReady || lastQueryTracks!==$('#tracks').checked){ const ok=await fetchRoads(); if(!ok){ $('#run').disabled=false; return; } }
   setStatus('Analyse des spots accessibles…'); detect(); $('#run').disabled=false; };
-['start','pace'].forEach(id=>$('#'+id).onchange=()=>{ if(SPOTS.length) renderSpots(SPOTS); });
+['start','pace','calKm','calTime'].forEach(id=>$('#'+id).onchange=()=>{ if(SPOTS.length) renderSpots(SPOTS); });
 
 const drop=$('#drop'),file=$('#file');
 drop.onclick=()=>file.click();
