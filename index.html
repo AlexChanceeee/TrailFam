@@ -324,15 +324,14 @@ function detect(){
   const cands=[]; let lastKm=-1;
   for(const p of trace){ if(p.distKm-lastKm<0.2&&lastKm>=0) continue; lastKm=p.distKm;
     const nr=nearestRoad(p); if(nr.road&&nr.dist<=thr) cands.push({...p,roadDist:nr.dist,roadName:nr.road.name,hw:nr.road.hw}); }
-  const clustered=[]; let cur=[];
-  for(let i=0;i<cands.length;i++){
-    if(cur.length&&cands[i].distKm-cur[cur.length-1].distKm>0.4){clustered.push(cur.reduce((a,b)=>b.roadDist<a.roadDist?b:a));cur=[];}
-    cur.push(cands[i]); }
-  if(cur.length) clustered.push(cur.reduce((a,b)=>b.roadDist<a.roadDist?b:a));
-  const spots=[];
-  for(const c of clustered){
-    if(spots.length&&c.distKm-spots[spots.length-1].distKm<gapKm){ if(c.roadDist<spots[spots.length-1].roadDist) spots[spots.length-1]=c; continue; }
-    spots.push(c); }
+  // un spot par tranche d'au moins 'gapKm' ; dans chaque tranche on garde le point le plus proche d'une route
+  const spots=[]; let i=0;
+  while(i<cands.length){
+    const winEnd=cands[i].distKm+gapKm; let best=cands[i], j=i+1;
+    while(j<cands.length && cands[j].distKm<=winEnd){ if(cands[j].roadDist<best.roadDist) best=cands[j]; j++; }
+    spots.push(best);
+    i=j; while(i<cands.length && cands[i].distKm<best.distKm+gapKm) i++;
+  }
   renderSpots(spots); drawProfile(spots);
   setStatus(spots.length?`${spots.length} spot(s) trouvé(s). Ajuste les curseurs pour affiner instantanément.`:'Aucun spot avec ces réglages — augmente la distance route.', spots.length?'ok':'err');
 }
