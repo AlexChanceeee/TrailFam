@@ -374,8 +374,9 @@ function fmtPace(p){ const m=Math.floor(p), s=Math.round((p-m)*60);
 function paceModel(){
   const [h,m]=$('#start').value.split(':').map(Number); const startMin=h*60+m;
   const calKm=parseFloat($('#calKm').value), calT=$('#calTime').value;
-  if(calKm>0 && calT){ const [ch,cm]=calT.split(':').map(Number); const calMin=ch*60+cm;
-    if(calMin>startMin) return {startMin, pace:(calMin-startMin)/calKm, recal:true}; }
+  if(calKm>0 && calT){ const [ch,cm]=calT.split(':').map(Number); let calMin=ch*60+cm;
+    if(calMin<=startMin) calMin+=1440; /* passage apres minuit */
+    return {startMin, pace:(calMin-startMin)/calKm, recal:true}; }
   const pmin=parseInt($('#paceMin').value)||0, psec=parseInt($('#paceSec').value)||0;
   return {startMin, pace:pmin+psec/60, recal:false};
 }
@@ -383,6 +384,7 @@ function passMinutes(distKm){ const pm=paceModel(); return pm.startMin + distKm*
 function passTime(distKm){ const t=passMinutes(distKm); const hh=Math.floor(t/60)%24, mm=Math.round(t%60)%60;
   return String(hh).padStart(2,'0')+'h'+String(mm).padStart(2,'0'); }
 
+function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c])); }
 function gmapsUrl(s){ return `https://www.google.com/maps/dir/?api=1&destination=${s.lat.toFixed(6)},${s.lon.toFixed(6)}`; }
 window.copyCoord=(e,txt)=>{ e.stopPropagation();
   const t=e.currentTarget, old=t.textContent, done=()=>{ t.textContent='copié \u2713'; setTimeout(()=>t.textContent=old,1200); };
@@ -409,7 +411,7 @@ async function fetchReverse(lat,lon){
 }
 function spotName(s){ return s.addr || (s.lat.toFixed(5)+', '+s.lon.toFixed(5)); }
 function popupHtml(i,s){
-  return `<b>Spot ${i+1}</b> \u2014 km ${s.distKm.toFixed(1)}<br>Passage estim\u00e9 : <b>${passTime(s.distKm)}</b><br>${spotName(s)}<br><span class="mono">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</span><br><a href="${gmapsUrl(s)}" target="_blank" rel="noopener">Ouvrir dans Google Maps \u2197</a>`;
+  return `<b>Spot ${i+1}</b> \u2014 km ${s.distKm.toFixed(1)}<br>Passage estim\u00e9 : <b>${passTime(s.distKm)}</b><br>${esc(spotName(s))}<br><span class="mono">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</span><br><a href="${gmapsUrl(s)}" target="_blank" rel="noopener">Ouvrir dans Google Maps \u2197</a>`;
 }
 function applyName(i,s){ const el=document.getElementById('sa'+i); if(el) el.textContent=spotName(s); if(spotMarkers[i]) spotMarkers[i].setPopupContent(popupHtml(i,s)); }
 let geoRun=0;
@@ -426,7 +428,13 @@ async function fillAddresses(spots){
 }
 
 function liveActive(){ return paceModel().recal; }
-function nowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function nowMin(){ const d=new Date(); let n=d.getHours()*60+d.getMinutes();
+  const pm=paceModel();
+  if(n<pm.startMin && trace.length){
+    const endMin=pm.startMin+trace[trace.length-1].distKm*pm.pace;
+    if(n+1440<=endMin+120) n+=1440; /* on est apres minuit, coureur encore en course */
+  }
+  return n; }
 function isPassed(s){ return liveActive() && passMinutes(s.distKm) < nowMin(); }
 function fmtDur(min){ min=Math.round(min); if(min<60) return min+' min'; const h=Math.floor(min/60), m=min%60; return h+' h '+String(m).padStart(2,'0'); }
 function renderSpots(spots){
@@ -443,7 +451,7 @@ function renderSpots(spots){
         <div class="sum"><span class="km">km ${s.distKm.toFixed(1)}</span><span class="time">${passTime(s.distKm)}</span></div>
         ${dot}<span class="chev">\u203a</span></div>
       <div class="details">
-        <div class="road"><span id="sa${i}">${s.addr?spotName(s):'localisation\u2026'}</span> \u00b7 ${Math.round(s.roadDist)} m<span class="pill ${isT?'track':''}">${isT?'piste 4x4':'route'}</span></div>
+        <div class="road"><span id="sa${i}">${s.addr?esc(spotName(s)):'localisation\u2026'}</span> \u00b7 ${Math.round(s.roadDist)} m<span class="pill ${isT?'track':''}">${isT?'piste 4x4':'route'}</span></div>
         ${reachHtml(s)}
         <div class="coords"><span class="cval" title="copier" onclick="copyCoord(event,'${s.lat.toFixed(6)},${s.lon.toFixed(6)}')">${co}</span>
           <a class="gmaps" href="${gmapsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Itin\u00e9raire \u2197</a></div>
@@ -488,16 +496,25 @@ function useMyPosition(){
 async function computeReach(){
   if(!userPos || !SPOTS.length) return;
   setStatus('Calcul des temps de trajet en voiture\u2026');
-  const coords=[`${userPos.lon},${userPos.lat}`].concat(SPOTS.map(s=>`${s.lon},${s.lat}`)).join(';');
+  const CHUNK=80; let okAny=false;
   try{
-    const r=await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?sources=0&annotations=duration`);
-    if(!r.ok) throw 0; const j=await r.json(); const durs=(j.durations&&j.durations[0])||[];
-    SPOTS.forEach((s,i)=>{ const v=durs[i+1]; s.driveMin=(v==null)?null:v/60; });
+    for(let off=0; off<SPOTS.length; off+=CHUNK){
+      const batch=SPOTS.slice(off,off+CHUNK);
+      const coords=[`${userPos.lon},${userPos.lat}`].concat(batch.map(s=>`${s.lon},${s.lat}`)).join(';');
+      const r=await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?sources=0&annotations=duration`);
+      if(!r.ok) throw 0;
+      const j=await r.json(); const durs=(j.durations&&j.durations[0])||[];
+      batch.forEach((s,i)=>{ const v=durs[i+1]; s.driveMin=(v==null)?null:v/60; });
+      okAny=true;
+    }
     renderSpots(SPOTS);
-    const d=new Date(), nowMin=d.getHours()*60+d.getMinutes();
-    const next=SPOTS.find(s=>s.driveMin!=null && passMinutes(s.distKm)>=nowMin && (nowMin+s.driveMin)<=passMinutes(s.distKm));
+    const nm=nowMin();
+    const next=SPOTS.find(s=>s.driveMin!=null && passMinutes(s.distKm)>=nm && (nm+s.driveMin)<=passMinutes(s.distKm));
     setStatus(next?`Prochain spot atteignable : Spot ${SPOTS.indexOf(next)+1} (km ${next.distKm.toFixed(1)}).`:'Position prise en compte \u2014 vois les marges sur chaque spot.','ok');
-  }catch(e){ setStatus('Trajets indisponibles (serveur de calcul occup\u00e9), r\u00e9essaie.','err'); }
+  }catch(e){
+    if(okAny) renderSpots(SPOTS);
+    setStatus('Trajets partiellement indisponibles (serveur occup\u00e9), r\u00e9essaie.','err');
+  }
 }
 $('#locate').onclick=useMyPosition;
 
