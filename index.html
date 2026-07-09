@@ -77,6 +77,11 @@ input[type=time]:focus,input[type=number]:focus{outline:none;border-color:var(--
 .pace2{display:flex;align-items:center;gap:8px}
 .pace2 input{flex:1;text-align:center}
 .pace2 .u{color:var(--mut);font-size:12.5px;flex:none}
+.placebox{display:flex;gap:9px;align-items:stretch}
+.placebox input{flex:1;min-width:0;background:var(--ink);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px 12px;font-family:Inter;font-size:14px}
+.placebox input:focus{outline:none;border-color:var(--sun);box-shadow:0 0 0 3px rgba(255,178,62,.14)}
+.placebox .pgo{width:auto;margin-top:0;padding:0 16px;flex:none}
+.nearpill{display:inline-block;font-size:10px;font-family:'Space Mono',monospace;padding:2px 7px;border-radius:5px;background:rgba(110,231,224,.12);color:var(--sky);border:1px solid rgba(110,231,224,.3);margin-left:8px}
 .slider{margin:15px 0}
 .slider .lab{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:8px;font-size:12.5px}
 .slider .lab>span:first-child{min-width:0}
@@ -225,6 +230,13 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
     <div class="hint">Recale l'allure d'après un temps de passage réel (suivi officiel, appel d'un ravito…). Les horaires des spots s'ajustent.</div>
     <button class="go ghost" id="locate">📍 Utiliser ma position</button>
     <div class="hint">Calcule, depuis où tu es, le temps de route vers chaque spot et te dit lesquels tu peux atteindre avant ton coureur.</div>
+
+    <div class="eyebrow"><span class="n">5</span> Lieu / ravito <span style="color:var(--mut2);text-transform:none;letter-spacing:0;font-weight:400">· optionnel</span></div>
+    <div class="placebox">
+      <input type="text" id="placeQ" placeholder="ex. Lalleyriat, Le Poizat…" autocomplete="off">
+      <button class="go ghost pgo" id="placeGo">Chercher</button>
+    </div>
+    <div class="hint">Tape le nom d'un lieu du roadbook (village d'un ravitaillement…) : il apparaît sur la carte et les spots proches sont indiqués.</div>
   </div>
 
   <div class="mapwrap">
@@ -261,6 +273,8 @@ window.addEventListener('resize',()=>map.invalidateSize());
 let trace=[], traceLine=null, spotMarkers=[], SPOTS=[];
 let roadGrid=null, roadCell=0.005, roadReady=false, lastQueryTracks=false;
 let userPos=null, userMarker=null;
+let placePos=null, placeName='', placeMarker=null;
+let RAVITOS=[], AUTO_SPOTS=[];
 
 function hav(a,b){const R=6371000,t=Math.PI/180;
   const dLat=(b.lat-a.lat)*t,dLon=(b.lon-a.lon)*t,la1=a.lat*t,la2=b.lat*t;
@@ -293,7 +307,9 @@ function loadTrace(text){
     map.fitBounds(traceLine.getBounds(),{padding:[44,44]});
     drawProfile();
     setStatus(`Trace chargée · ${trace[trace.length-1].distKm.toFixed(1)} km · ${trace.length} points. Prêt à analyser.`,'ok');
-    roadReady=false; $('#run').disabled=false; clearSpots();
+    roadReady=false; RAVITOS=[]; AUTO_SPOTS=[];
+    if(placeMarker){map.removeLayer(placeMarker);placeMarker=null;placePos=null;}
+    $('#run').disabled=false; clearSpots();
   }catch(e){ setStatus('Erreur : '+e.message,'err'); }
 }
 
@@ -309,7 +325,7 @@ function drawProfile(spots){
   html+=`<path d="${d}" fill="url(#g)" stroke="#FF5A5F" stroke-width="1.6"/>`;
   if(spots) spots.forEach((s,i)=>{const px=x(s.distKm).toFixed(1),py=y(s.ele).toFixed(1);
     html+=`<line x1="${px}" y1="${py}" x2="${px}" y2="16" stroke="#FFB23E" stroke-width="1" opacity=".55"/>
-      <circle cx="${px}" cy="${py}" r="3.5" fill="#FFB23E"/>
+      <circle cx="${px}" cy="${py}" r="3.5" fill="${s.kind==='ravito'?'#6EE7E0':'#FFB23E'}"/>
       <g style="cursor:pointer" onclick="flyTo(${i})"><rect x="${px-9}" y="3" width="18" height="16" rx="4" fill="#FFB23E"/>
       <text x="${px}" y="15" text-anchor="middle" font-family="Space Mono" font-size="10" font-weight="700" fill="#241704">${i+1}</text></g>`;});
   svg.innerHTML=html;
@@ -365,8 +381,10 @@ function detect(){
     spots.push(best);
     i=j; while(i<cands.length && cands[i].distKm<best.distKm+gapKm) i++;
   }
-  renderSpots(spots); drawProfile(spots);
-  setStatus(spots.length?`${spots.length} spot(s) trouvé(s). Ajuste les curseurs pour affiner instantanément.`:'Aucun spot avec ces réglages — augmente la distance route.', spots.length?'ok':'err');
+  AUTO_SPOTS=spots;
+  const merged=mergeRavitos(spots);
+  renderSpots(merged); drawProfile(merged);
+  setStatus(merged.length?`${merged.length} spot(s) trouv\u00e9(s). Ajuste les curseurs pour affiner instantan\u00e9ment.`:'Aucun spot avec ces r\u00e9glages \u2014 augmente la distance route.', merged.length?'ok':'err');
 }
 
 function fmtPace(p){ const m=Math.floor(p), s=Math.round((p-m)*60);
@@ -411,7 +429,7 @@ async function fetchReverse(lat,lon){
 }
 function spotName(s){ return s.addr || (s.lat.toFixed(5)+', '+s.lon.toFixed(5)); }
 function popupHtml(i,s){
-  return `<b>Spot ${i+1}</b> \u2014 km ${s.distKm.toFixed(1)}<br>Passage estim\u00e9 : <b>${passTime(s.distKm)}</b><br>${esc(spotName(s))}<br><span class="mono">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</span><br><a href="${gmapsUrl(s)}" target="_blank" rel="noopener">Ouvrir dans Google Maps \u2197</a>`;
+  return `<b>${s.kind==='ravito'?'\u{1F3D5} Ravito':'Spot'} ${i+1}</b> \u2014 km ${s.distKm.toFixed(1)}<br>Passage estim\u00e9 : <b>${passTime(s.distKm)}</b><br>${esc(spotName(s))}<br><span class="mono">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</span><br><a href="${gmapsUrl(s)}" target="_blank" rel="noopener">Ouvrir dans Google Maps \u2197</a>`;
 }
 function applyName(i,s){ const el=document.getElementById('sa'+i); if(el) el.textContent=spotName(s); if(spotMarkers[i]) spotMarkers[i].setPopupContent(popupHtml(i,s)); }
 let geoRun=0;
@@ -419,7 +437,8 @@ async function fillAddresses(spots){
   const run=++geoRun;
   for(let i=0;i<spots.length;i++){
     if(run!==geoRun) return;
-    const s=spots[i], key=s.lat.toFixed(5)+','+s.lon.toFixed(5);
+    const s=spots[i]; if(s.addr){ applyName(i,s); continue; }
+    const key=s.lat.toFixed(5)+','+s.lon.toFixed(5);
     if(geoCache.has(key)){ s.addr=geoCache.get(key); applyName(i,s); continue; }
     let addr=null; try{ addr=await fetchReverse(s.lat,s.lon); }catch(e){ addr=null; }
     geoCache.set(key,addr); s.addr=addr; applyName(i,s);
@@ -437,6 +456,22 @@ function nowMin(){ const d=new Date(); let n=d.getHours()*60+d.getMinutes();
   return n; }
 function isPassed(s){ return liveActive() && passMinutes(s.distKm) < nowMin(); }
 function fmtDur(min){ min=Math.round(min); if(min<60) return min+' min'; const h=Math.floor(min/60), m=min%60; return h+' h '+String(m).padStart(2,'0'); }
+/* fusion : ravitos remplacent les spots auto voisins, tri par km course */
+function mergeRavitos(auto){
+  const gapKm=+$('#gap').value;
+  let out=auto.slice();
+  for(const r of RAVITOS){
+    out=out.filter(s=> s.kind==='ravito' || (Math.abs(s.distKm-r.distKm)>=gapKm && hav(r,s)>600));
+    out.push(r);
+  }
+  return out.sort((a,b)=>a.distKm-b.distKm);
+}
+function nearBadge(s){
+  if(!placePos) return '';
+  const d=hav(placePos,s)/1000;
+  if(d>3) return '';
+  return `<span class="nearpill">\u{1F3D5} ${d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km'}</span>`;
+}
 function renderSpots(spots){
   SPOTS=spots; spotMarkers.forEach(m=>map.removeLayer(m)); spotMarkers=[];
   const box=$('#spots'); if(!spots.length){box.classList.remove('show');box.innerHTML='';return;}
@@ -447,11 +482,11 @@ function renderSpots(spots){
     let dot=''; if(s.driveMin!=null){ const pm=passMinutes(s.distKm),ar=nowMin()+s.driveMin;
       dot = pm<nowMin()-1 ? '<span class="dot d-pass"></span>' : (pm-ar>=0 ? '<span class="dot d-ok"></span>' : '<span class="dot d-late"></span>'); }
     html+=`<div class="card" id="card${i}" onclick="toggleCard(${i})">
-      <div class="row1"><div class="num">${i+1}</div>
-        <div class="sum"><span class="km">km ${s.distKm.toFixed(1)}</span><span class="time">${passTime(s.distKm)}</span></div>
+      <div class="row1"><div class="num"${s.kind==='ravito'?' style="color:var(--sky)"':''}>${i+1}</div>
+        <div class="sum"><span class="km">km ${s.distKm.toFixed(1)}</span><span class="time">${passTime(s.distKm)}</span>${nearBadge(s)}</div>
         ${dot}<span class="chev">\u203a</span></div>
       <div class="details">
-        <div class="road"><span id="sa${i}">${s.addr?esc(spotName(s)):'localisation\u2026'}</span> \u00b7 ${Math.round(s.roadDist)} m<span class="pill ${isT?'track':''}">${isT?'piste 4x4':'route'}</span></div>
+        <div class="road"><span id="sa${i}">${s.addr?esc(spotName(s)):'localisation\u2026'}</span> \u00b7 ${Math.round(s.roadDist)} m<span class="pill ${s.kind==='ravito'?'':(isT?'track':'')}">${s.kind==='ravito'?'\u{1F3D5} ravito':(isT?'piste 4x4':'route')}</span>${s.kind==='ravito'?' <a class="gmaps" href="#" onclick="event.preventDefault();event.stopPropagation();removeRavito('+s.lat+','+s.lon+')">retirer</a>':''}</div>
         ${reachHtml(s)}
         <div class="coords"><span class="cval" title="copier" onclick="copyCoord(event,'${s.lat.toFixed(6)},${s.lon.toFixed(6)}')">${co}</span>
           <a class="gmaps" href="${gmapsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Itin\u00e9raire \u2197</a></div>
@@ -459,7 +494,7 @@ function renderSpots(spots){
     </div>`; });
   box.innerHTML=html; box.classList.add('show');
   spots.forEach((s,i)=>{
-    const passed=live&&isPassed(s), col=passed?'#6E6880':'#FFB23E';
+    const passed=live&&isPassed(s), col=passed?'#6E6880':(s.kind==='ravito'?'#6EE7E0':'#FFB23E');
     const ic=L.divIcon({className:'',html:`<div style="background:${col};color:#241704;font-family:'Space Mono';font-weight:700;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #15131C;box-shadow:0 3px 8px rgba(0,0,0,.5);opacity:${passed?'.7':'1'}"><span style="transform:rotate(45deg)">${i+1}</span></div>`,iconSize:[26,26],iconAnchor:[13,26]});
     spotMarkers.push(L.marker([s.lat,s.lon],{icon:ic}).addTo(map).bindPopup(popupHtml(i,s)));
   });
@@ -517,6 +552,61 @@ async function computeReach(){
   }
 }
 $('#locate').onclick=useMyPosition;
+/* ---- lieu / ravito : geocodage direct (Nominatim) ---- */
+async function searchPlace(){
+  const q=($('#placeQ').value||'').trim();
+  if(!q){ setStatus('Tape un nom de lieu \u00e0 chercher.','err'); return; }
+  setStatus('Recherche de \u00ab '+q+' \u00bb\u2026');
+  let url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q);
+  if(trace.length){
+    let mnLa=90,mxLa=-90,mnLo=180,mxLo=-180;
+    for(const p of trace){mnLa=Math.min(mnLa,p.lat);mxLa=Math.max(mxLa,p.lat);mnLo=Math.min(mnLo,p.lon);mxLo=Math.max(mxLo,p.lon);}
+    const pad=0.35;
+    url+='&viewbox='+(mnLo-pad)+','+(mxLa+pad)+','+(mxLo+pad)+','+(mnLa-pad)+'&bounded=0';
+  }
+  try{
+    const r=await fetch(url,{headers:{'Accept':'application/json'}}); if(!r.ok) throw 0;
+    const arr=await r.json();
+    if(!arr.length){ setStatus('Lieu introuvable \u2014 essaie avec le nom de la commune.','err'); return; }
+    const hit=arr[0];
+    const pos={lat:+hit.lat, lon:+hit.lon}, name=(hit.display_name||q).split(',')[0];
+    if(!trace.length){ setStatus(name+' trouv\u00e9 \u2014 importe d\u2019abord la trace de la course.','err'); return; }
+    /* point de la trace le plus proche du lieu */
+    let best=null, bd=Infinity;
+    for(const pt of trace){ const d=hav(pos,pt); if(d<bd){bd=d;best=pt;} }
+    if(bd>5000){
+      /* lieu hors parcours : simple rep\u00e8re sur la carte */
+      placePos=pos; placeName=name;
+      if(placeMarker) map.removeLayer(placeMarker);
+      placeMarker=L.marker([pos.lat,pos.lon],{icon:L.divIcon({className:'',
+        html:`<div style="background:#6EE7E0;color:#0c2b29;font-family:'Bricolage Grotesque';font-weight:800;font-size:13px;padding:3px 9px;border-radius:8px;border:2px solid #15131C;box-shadow:0 3px 10px rgba(0,0,0,.5);white-space:nowrap">\u{1F3D5} ${esc(name)}</div>`,
+        iconSize:null,iconAnchor:[20,14]})}).addTo(map).bindPopup('<b>'+esc(name)+'</b>');
+      map.flyTo([pos.lat,pos.lon],13);
+      setStatus(name+' est \u00e0 '+(bd/1000).toFixed(1)+' km du parcours \u2014 affich\u00e9 comme rep\u00e8re seulement.','ok');
+      return;
+    }
+    /* ravito sur le parcours : devient un spot \u00e0 part enti\u00e8re */
+    if(RAVITOS.some(rv=>hav(rv,pos)<100)){ setStatus(name+' est d\u00e9j\u00e0 dans la liste.','ok'); return; }
+    const rav={lat:pos.lat, lon:pos.lon, ele:best.ele, distKm:best.distKm,
+      roadDist:Math.round(bd), roadName:name, addr:name, hw:'ravito', kind:'ravito'};
+    RAVITOS.push(rav);
+    const merged=mergeRavitos(AUTO_SPOTS);
+    renderSpots(merged); drawProfile(merged);
+    const idx=merged.indexOf(rav);
+    if(idx>=0){ map.flyTo([rav.lat,rav.lon],15); const mk=spotMarkers[idx]; if(mk) mk.openPopup(); }
+    setStatus('\u{1F3D5} '+name+' ajout\u00e9 \u2014 spot n\u00b0'+(idx+1)+', km '+rav.distKm.toFixed(1)+', passage estim\u00e9 '+passTime(rav.distKm)+'.','ok');
+    if(userPos) computeReach();
+  }catch(e){ setStatus('Recherche indisponible, r\u00e9essaie dans un instant.','err'); }
+}
+window.removeRavito=(lat,lon)=>{
+  RAVITOS=RAVITOS.filter(r=>!(Math.abs(r.lat-lat)<1e-6&&Math.abs(r.lon-lon)<1e-6));
+  const merged=mergeRavitos(AUTO_SPOTS);
+  renderSpots(merged); drawProfile(merged);
+  setStatus('Ravito retir\u00e9.','ok');
+};
+$('#placeGo').onclick=e=>{e.preventDefault();searchPlace();};
+$('#placeQ').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); searchPlace(); } });
+
 
 $('#thr').oninput=e=>{ $('#thrV').textContent=e.target.value+' m';
   $('#thrH').textContent=`On garde un endroit si une route carrossable passe à moins de ${e.target.value} m de la trace. Plus la valeur est haute, plus il y a de spots.`; };
