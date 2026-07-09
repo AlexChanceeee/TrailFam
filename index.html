@@ -275,6 +275,7 @@ let roadGrid=null, roadCell=0.005, roadReady=false, lastQueryTracks=false;
 let userPos=null, userMarker=null;
 let placePos=null, placeName='', placeMarker=null;
 let RAVITOS=[], AUTO_SPOTS=[];
+let PLACES=[];
 
 function hav(a,b){const R=6371000,t=Math.PI/180;
   const dLat=(b.lat-a.lat)*t,dLon=(b.lon-a.lon)*t,la1=a.lat*t,la2=b.lat*t;
@@ -340,7 +341,8 @@ async function fetchRoads(){
   const pad=0.01; minLat-=pad;minLon-=pad;maxLat+=pad;maxLon+=pad;
   let types='motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street|road';
   if(withTracks) types+='|track';
-  const q=`[out:json][timeout:60];way["highway"~"^(${types})$"](${minLat},${minLon},${maxLat},${maxLon});out geom;`;
+  const bb=`${minLat},${minLon},${maxLat},${maxLon}`;
+  const q=`[out:json][timeout:60];(way["highway"~"^(${types})$"](${bb});node["place"~"^(city|town|village|hamlet|locality|isolated_dwelling)$"]["name"](${bb}););out geom;`;
   const ENDPOINTS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
   async function tryFetch(url){
     const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),35000);
@@ -354,9 +356,11 @@ async function fetchRoads(){
   if(!data){ const m=lastErr?.kind==='blocked'?"connexion bloquée. Ouvre l'app via son lien (https), pas en fichier local."
       :lastErr?.kind==='timeout'?"serveurs lents, réessaie dans un instant.":"serveurs occupés, réessaie dans 30 s.";
     setStatus('Erreur : '+m,'err'); return false; }
-  const roadPts=[];
-  for(const w of (data.elements||[])){ if(!w.geometry) continue;
-    const name=w.tags?.ref||w.tags?.name||'route sans nom', hw=w.tags?.highway||'';
+  const roadPts=[]; PLACES=[];
+  for(const w of (data.elements||[])){
+    if(w.type==='node' && w.tags?.place){ PLACES.push({lat:w.lat,lon:w.lon,name:w.tags.name}); continue; }
+    if(!w.geometry) continue;
+    const name=w.tags?.ref||w.tags?.name||'', hw=w.tags?.highway||'';
     for(const g of w.geometry) roadPts.push({lat:g.lat,lon:g.lon,name,hw}); }
   if(!roadPts.length){ setStatus('Aucune route trouvée dans cette zone.','err'); return false; }
   roadGrid=new Map();
@@ -381,9 +385,11 @@ function detect(){
     spots.push(best);
     i=j; while(i<cands.length && cands[i].distKm<best.distKm+gapKm) i++;
   }
+  for(const s of spots) if(!s.addr) s.addr=localAddr(s);
   AUTO_SPOTS=spots;
   const merged=mergeRavitos(spots);
   renderSpots(merged); drawProfile(merged);
+  if(userPos) computeReach();
   setStatus(merged.length?`${merged.length} spot(s) trouv\u00e9(s). Ajuste les curseurs pour affiner instantan\u00e9ment.`:'Aucun spot avec ces r\u00e9glages \u2014 augmente la distance route.', merged.length?'ok':'err');
 }
 
@@ -409,41 +415,20 @@ window.copyCoord=(e,txt)=>{ e.stopPropagation();
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(done); else done();
 };
 
-/* ---- ville + adresse via geocodage inverse (Nominatim / OpenStreetMap) ---- */
-const geoCache=new Map();
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function fmtAddr(j){
-  const a=(j&&j.address)||{};
-  const place=a.city||a.town||a.village||a.hamlet||a.municipality||a.suburb||a.county||'';
-  const road=a.road||a.pedestrian||a.footway||a.cycleway||a.path||a.track||'';
-  const num=a.house_number?a.house_number+' ':'';
-  if(road&&place) return num+road+', '+place;
-  if(place) return place;
-  if(road) return num+road;
-  return null;
+/* ---- nommage local instantane : villages/hameaux charges avec les routes ---- */
+function nearestPlace(p){
+  let best=null,bd=Infinity;
+  for(const pl of PLACES){ const d=hav(p,pl); if(d<bd){bd=d;best=pl;} }
+  return (best && bd<=4000) ? best.name : null;
 }
-async function fetchReverse(lat,lon){
-  const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat='+lat+'&lon='+lon;
-  const r=await fetch(url,{headers:{'Accept':'application/json'}}); if(!r.ok) throw 0;
-  return fmtAddr(await r.json());
+function localAddr(s){
+  const place=nearestPlace(s), road=s.roadName||'';
+  if(road&&place) return road+', '+place;
+  return place||road||null;
 }
 function spotName(s){ return s.addr || (s.lat.toFixed(5)+', '+s.lon.toFixed(5)); }
 function popupHtml(i,s){
   return `<b>${s.kind==='ravito'?'\u{1F3D5} Ravito':'Spot'} ${i+1}</b> \u2014 km ${s.distKm.toFixed(1)}<br>Passage estim\u00e9 : <b>${passTime(s.distKm)}</b><br>${esc(spotName(s))}<br><span class="mono">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</span><br><a href="${gmapsUrl(s)}" target="_blank" rel="noopener">Ouvrir dans Google Maps \u2197</a>`;
-}
-function applyName(i,s){ const el=document.getElementById('sa'+i); if(el) el.textContent=spotName(s); if(spotMarkers[i]) spotMarkers[i].setPopupContent(popupHtml(i,s)); }
-let geoRun=0;
-async function fillAddresses(spots){
-  const run=++geoRun;
-  for(let i=0;i<spots.length;i++){
-    if(run!==geoRun) return;
-    const s=spots[i]; if(s.addr){ applyName(i,s); continue; }
-    const key=s.lat.toFixed(5)+','+s.lon.toFixed(5);
-    if(geoCache.has(key)){ s.addr=geoCache.get(key); applyName(i,s); continue; }
-    let addr=null; try{ addr=await fetchReverse(s.lat,s.lon); }catch(e){ addr=null; }
-    geoCache.set(key,addr); s.addr=addr; applyName(i,s);
-    await sleep(1100);
-  }
 }
 
 function liveActive(){ return paceModel().recal; }
@@ -486,7 +471,7 @@ function renderSpots(spots){
         <div class="sum"><span class="km">km ${s.distKm.toFixed(1)}</span><span class="time">${passTime(s.distKm)}</span>${nearBadge(s)}</div>
         ${dot}<span class="chev">\u203a</span></div>
       <div class="details">
-        <div class="road"><span id="sa${i}">${s.addr?esc(spotName(s)):'localisation\u2026'}</span> \u00b7 ${Math.round(s.roadDist)} m<span class="pill ${s.kind==='ravito'?'':(isT?'track':'')}">${s.kind==='ravito'?'\u{1F3D5} ravito':(isT?'piste 4x4':'route')}</span>${s.kind==='ravito'?' <a class="gmaps" href="#" onclick="event.preventDefault();event.stopPropagation();removeRavito('+s.lat+','+s.lon+')">retirer</a>':''}</div>
+        <div class="road"><span id="sa${i}">${esc(spotName(s))}</span> \u00b7 \u00e0 ${Math.round(s.roadDist)} m de la trace<span class="pill ${s.kind==='ravito'?'':(isT?'track':'')}">${s.kind==='ravito'?'\u{1F3D5} ravito':(isT?'piste 4x4':'route')}</span>${s.kind==='ravito'?' <a class="gmaps" href="#" onclick="event.preventDefault();event.stopPropagation();removeRavito('+s.lat+','+s.lon+')">retirer</a>':''}</div>
         ${reachHtml(s)}
         <div class="coords"><span class="cval" title="copier" onclick="copyCoord(event,'${s.lat.toFixed(6)},${s.lon.toFixed(6)}')">${co}</span>
           <a class="gmaps" href="${gmapsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Itin\u00e9raire \u2197</a></div>
@@ -498,7 +483,6 @@ function renderSpots(spots){
     const ic=L.divIcon({className:'',html:`<div style="background:${col};color:#241704;font-family:'Space Mono';font-weight:700;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #15131C;box-shadow:0 3px 8px rgba(0,0,0,.5);opacity:${passed?'.7':'1'}"><span style="transform:rotate(45deg)">${i+1}</span></div>`,iconSize:[26,26],iconAnchor:[13,26]});
     spotMarkers.push(L.marker([s.lat,s.lon],{icon:ic}).addTo(map).bindPopup(popupHtml(i,s)));
   });
-  fillAddresses(spots);
 }
 window.flyTo=i=>{const s=SPOTS[i];map.flyTo([s.lat,s.lon],16);spotMarkers[i].openPopup();};
 window.toggleCard=i=>{ const c=document.getElementById('card'+i); if(!c) return; const open=c.classList.toggle('open'); if(open) flyTo(i); };
