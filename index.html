@@ -233,10 +233,14 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
 
     <div class="eyebrow"><span class="n">5</span> Lieu / ravito <span style="color:var(--mut2);text-transform:none;letter-spacing:0;font-weight:400">· optionnel</span></div>
     <div class="placebox">
-      <input type="text" id="placeQ" placeholder="ex. Lalleyriat, Le Poizat…" autocomplete="off">
+      <input type="text" id="placeQ" placeholder="par lieu · ex. Lalleyriat" autocomplete="off">
       <button class="go ghost pgo" id="placeGo">Chercher</button>
     </div>
-    <div class="hint">Tape le nom d'un lieu du roadbook (village d'un ravitaillement…) : il apparaît sur la carte et les spots proches sont indiqués.</div>
+    <div class="placebox" style="margin-top:9px">
+      <input type="number" id="ravKm" placeholder="par kilométrage · ex. 42" step="0.1" min="0">
+      <button class="go ghost pgo" id="ravGo">Ajouter</button>
+    </div>
+    <div class="hint">Ajoute un ravitaillement par son nom de lieu ou par son km sur la trace (roadbook). Il devient un spot à part entière et remplace les spots détectés alentour.</div>
   </div>
 
   <div class="mapwrap">
@@ -537,6 +541,29 @@ async function computeReach(){
 }
 $('#locate').onclick=useMyPosition;
 /* ---- lieu / ravito : geocodage direct (Nominatim) ---- */
+function commitRavito(rav){
+  RAVITOS.push(rav);
+  const merged=mergeRavitos(AUTO_SPOTS);
+  renderSpots(merged); drawProfile(merged);
+  const idx=merged.indexOf(rav);
+  if(idx>=0){ map.flyTo([rav.lat,rav.lon],15); const mk=spotMarkers[idx]; if(mk) mk.openPopup(); }
+  setStatus('\u{1F3D5} '+(rav.addr||('km '+rav.distKm.toFixed(1)))+' ajout\u00e9 \u2014 spot n\u00b0'+(idx+1)+', km '+rav.distKm.toFixed(1)+', passage estim\u00e9 '+passTime(rav.distKm)+'.','ok');
+  if(userPos) computeReach();
+}
+function addRavitoAtKm(){
+  if(!trace.length){ setStatus('Importe d\u2019abord la trace de la course.','err'); return; }
+  const km=parseFloat($('#ravKm').value);
+  const total=trace[trace.length-1].distKm;
+  if(!(km>=0)){ setStatus('Indique un kilom\u00e9trage valide.','err'); return; }
+  if(km>total+0.5){ setStatus('La course fait '+total.toFixed(1)+' km \u2014 km '+km+' hors trace.','err'); return; }
+  let pt=trace[trace.length-1];
+  for(const p of trace){ if(p.distKm>=km){ pt=p; break; } }
+  if(RAVITOS.some(rv=>Math.abs(rv.distKm-pt.distKm)<0.2)){ setStatus('Un ravito existe d\u00e9j\u00e0 \u00e0 ce km.','ok'); return; }
+  const place=PLACES.length?nearestPlace(pt):null;
+  const rav={lat:pt.lat, lon:pt.lon, ele:pt.ele, distKm:pt.distKm,
+    roadDist:0, roadName:'', addr:'Ravito km '+km+(place?' \u00b7 '+place:''), hw:'ravito', kind:'ravito'};
+  commitRavito(rav);
+}
 async function searchPlace(){
   const q=($('#placeQ').value||'').trim();
   if(!q){ setStatus('Tape un nom de lieu \u00e0 chercher.','err'); return; }
@@ -573,13 +600,7 @@ async function searchPlace(){
     if(RAVITOS.some(rv=>hav(rv,pos)<100)){ setStatus(name+' est d\u00e9j\u00e0 dans la liste.','ok'); return; }
     const rav={lat:pos.lat, lon:pos.lon, ele:best.ele, distKm:best.distKm,
       roadDist:Math.round(bd), roadName:name, addr:name, hw:'ravito', kind:'ravito'};
-    RAVITOS.push(rav);
-    const merged=mergeRavitos(AUTO_SPOTS);
-    renderSpots(merged); drawProfile(merged);
-    const idx=merged.indexOf(rav);
-    if(idx>=0){ map.flyTo([rav.lat,rav.lon],15); const mk=spotMarkers[idx]; if(mk) mk.openPopup(); }
-    setStatus('\u{1F3D5} '+name+' ajout\u00e9 \u2014 spot n\u00b0'+(idx+1)+', km '+rav.distKm.toFixed(1)+', passage estim\u00e9 '+passTime(rav.distKm)+'.','ok');
-    if(userPos) computeReach();
+    commitRavito(rav);
   }catch(e){ setStatus('Recherche indisponible, r\u00e9essaie dans un instant.','err'); }
 }
 window.removeRavito=(lat,lon)=>{
@@ -589,6 +610,8 @@ window.removeRavito=(lat,lon)=>{
   setStatus('Ravito retir\u00e9.','ok');
 };
 $('#placeGo').onclick=e=>{e.preventDefault();searchPlace();};
+$('#ravGo').onclick=e=>{e.preventDefault();addRavitoAtKm();};
+$('#ravKm').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addRavitoAtKm(); } });
 $('#placeQ').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); searchPlace(); } });
 
 
