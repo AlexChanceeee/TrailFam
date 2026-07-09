@@ -226,7 +226,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
     <div class="eyebrow"><span class="n">4</span> Suivi en direct <span style="color:var(--mut2);text-transform:none;letter-spacing:0;font-weight:400">· optionnel</span></div>
     <div class="row">
       <div class="field"><label>Dernier point connu (km)</label><input type="number" id="calKm" placeholder="42" step="0.1" min="0"></div>
-      <div class="field"><label>Heure de passage</label><input type="time" id="calTime"></div>
+      <div class="field"><label>Heure de passage <button class="linkish" id="calNow" style="font-size:11px">maintenant</button></label><input type="time" id="calTime"></div>
     </div>
     <div class="hint">Recale l'allure d'après un temps de passage réel (suivi officiel, appel d'un ravito…). Les horaires des spots s'ajustent.</div>
     <button class="go ghost" id="locate">📍 Utiliser ma position</button>
@@ -278,6 +278,7 @@ window.addEventListener('resize',()=>map.invalidateSize());
 let trace=[], traceLine=null, spotMarkers=[], SPOTS=[];
 let roadGrid=null, roadCell=0.005, roadReady=false, lastQueryTracks=false;
 let userPos=null, userMarker=null;
+let runnerMarker=null;
 let placePos=null, placeName='', placeMarker=null;
 let RAVITOS=[], AUTO_SPOTS=[];
 let PLACES=[];
@@ -405,7 +406,7 @@ function paceModel(){
   const calKm=parseFloat($('#calKm').value), calT=$('#calTime').value;
   if(calKm>0 && calT){ const [ch,cm]=calT.split(':').map(Number); let calMin=ch*60+cm;
     if(calMin<=startMin) calMin+=1440; /* passage apres minuit */
-    return {startMin, pace:(calMin-startMin)/calKm, recal:true}; }
+    return {startMin, pace:(calMin-startMin)/calKm, recal:true, calKm, calMin}; }
   const pmin=parseInt($('#paceMin').value)||0, psec=parseInt($('#paceSec').value)||0;
   return {startMin, pace:pmin+psec/60, recal:false};
 }
@@ -444,7 +445,16 @@ function nowMin(){ const d=new Date(); let n=d.getHours()*60+d.getMinutes();
     if(n+1440<=endMin+120) n+=1440; /* on est apres minuit, coureur encore en course */
   }
   return n; }
-function isPassed(s){ return liveActive() && passMinutes(s.distKm) < nowMin(); }
+/* position estimee du coureur (km) — source de verite unique */
+function runnerKm(){
+  const pm=paceModel(); if(!pm.recal||!trace.length) return null;
+  const n=nowMin(), total=trace[trace.length-1].distKm;
+  let km;
+  if(n>=pm.calMin) km=pm.calKm+(n-pm.calMin)/pm.pace;
+  else km=Math.min(pm.calKm,(n-pm.startMin)/pm.pace);
+  return Math.max(0, Math.min(total, km));
+}
+function isPassed(s){ const rk=runnerKm(); return rk!=null && s.distKm < rk-0.05; }
 function fmtDur(min){ min=Math.round(min); if(min<60) return min+' min'; const h=Math.floor(min/60), m=min%60; return h+' h '+String(m).padStart(2,'0'); }
 /* fusion : ravitos remplacent les spots auto voisins, tri par km course */
 function mergeRavitos(auto){
@@ -461,6 +471,26 @@ function nearBadge(s){
   const d=hav(placePos,s)/1000;
   if(d>3) return '';
   return `<span class="nearpill">\u{1F3D5} ${d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km'}</span>`;
+}
+function traceAt(km){
+  if(!trace.length) return null;
+  for(let i=1;i<trace.length;i++){
+    if(trace[i].distKm>=km){
+      const a=trace[i-1],b=trace[i],span=b.distKm-a.distKm||1e-9,f=(km-a.distKm)/span;
+      return {lat:a.lat+(b.lat-a.lat)*f, lon:a.lon+(b.lon-a.lon)*f};
+    }
+  }
+  return trace[trace.length-1];
+}
+function updateRunnerMarker(){
+  const rk=runnerKm();
+  if(runnerMarker){ map.removeLayer(runnerMarker); runnerMarker=null; }
+  if(rk==null) return;
+  const pos=traceAt(rk); if(!pos) return;
+  runnerMarker=L.marker([pos.lat,pos.lon],{zIndexOffset:900,icon:L.divIcon({className:'',
+    html:`<div style="background:#FF5A5F;color:#fff;font-family:'Bricolage Grotesque';font-weight:800;font-size:12px;padding:3px 8px;border-radius:8px;border:2px solid #15131C;box-shadow:0 3px 10px rgba(0,0,0,.55);white-space:nowrap">\u{1F3C3} km ${rk.toFixed(1)}</div>`,
+    iconSize:null,iconAnchor:[18,13]})}).addTo(map)
+    .bindPopup('Coureur estim\u00e9 au <b>km '+rk.toFixed(1)+'</b> \u00e0 '+passTime(rk));
 }
 function renderSpots(spots){
   SPOTS=spots; spotMarkers.forEach(m=>map.removeLayer(m)); spotMarkers=[];
@@ -488,6 +518,7 @@ function renderSpots(spots){
     const ic=L.divIcon({className:'',html:`<div style="background:${col};color:#241704;font-family:'Space Mono';font-weight:700;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #15131C;box-shadow:0 3px 8px rgba(0,0,0,.5);opacity:${passed?'.7':'1'}"><span style="transform:rotate(45deg)">${i+1}</span></div>`,iconSize:[26,26],iconAnchor:[13,26]});
     spotMarkers.push(L.marker([s.lat,s.lon],{icon:ic}).addTo(map).bindPopup(popupHtml(i,s)));
   });
+  updateRunnerMarker();
 }
 window.flyTo=i=>{const s=SPOTS[i];map.flyTo([s.lat,s.lon],16);spotMarkers[i].openPopup();};
 window.toggleCard=i=>{ const c=document.getElementById('card'+i); if(!c) return; const open=c.classList.toggle('open'); if(open) flyTo(i); };
@@ -496,7 +527,8 @@ window.toggleCard=i=>{ const c=document.getElementById('card'+i); if(!c) return;
 function reachHtml(s){
   if(s.driveMin==null) return '';
   const pm=passMinutes(s.distKm), arrive=nowMin()+s.driveMin, drive=fmtDur(s.driveMin);
-  if(pm < nowMin()-1) return `<div class="reach passed">\u{1F3C3} d\u00e9j\u00e0 pass\u00e9 \u00b7 \u{1F697} ${drive}</div>`;
+  const passed = liveActive() ? isPassed(s) : (pm < nowMin()-1);
+  if(passed) return `<div class="reach passed">\u{1F3C3} d\u00e9j\u00e0 pass\u00e9 \u00b7 \u{1F697} ${drive}</div>`;
   const margin=Math.round(pm-arrive);
   if(margin>=0) return `<div class="reach ok">\u{1F697} ${drive} \u00b7 ${fmtDur(margin)} d'avance</div>`;
   return `<div class="reach late">\u{1F697} ${drive} \u00b7 trop tard de ${fmtDur(-margin)}</div>`;
@@ -615,6 +647,7 @@ function resetAll(){
   RAVITOS=[]; AUTO_SPOTS=[];
   if(placeMarker){ map.removeLayer(placeMarker); placeMarker=null; } placePos=null; placeName='';
   if(userMarker){ map.removeLayer(userMarker); userMarker=null; } userPos=null;
+  if(runnerMarker){ map.removeLayer(runnerMarker); runnerMarker=null; }
   $('#calKm').value=''; $('#calTime').value='';
   $('#placeQ').value=''; $('#ravKm').value='';
   clearSpots();
@@ -623,6 +656,11 @@ function resetAll(){
   else setStatus('Remise \u00e0 z\u00e9ro. Importe une trace pour commencer.','ok');
 }
 $('#reset').onclick=resetAll;
+$('#calNow').onclick=e=>{ e.preventDefault();
+  const d=new Date();
+  $('#calTime').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  applyLive();
+};
 $('#ravGo').onclick=e=>{e.preventDefault();addRavitoAtKm();};
 $('#ravKm').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addRavitoAtKm(); } });
 $('#placeQ').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); searchPlace(); } });
@@ -640,7 +678,9 @@ $('#run').onclick=async()=>{ if(!trace.length) return; $('#run').disabled=true;
 function applyLive(){
   const pm=paceModel();
   if(SPOTS.length) renderSpots(SPOTS);
-  if(pm.recal) setStatus('Allure recalée : '+fmtPace(pm.pace)+'/km'+(SPOTS.length?' — horaires des spots mis à jour.':' — lance « Trouver les spots ».'),'ok');
+  if(pm.recal){ const rk=runnerKm();
+    setStatus('Allure recalée : '+fmtPace(pm.pace)+'/km'+(rk!=null?' · coureur estimé au km '+rk.toFixed(1):'')+(SPOTS.length?' — spots passés grisés.':' — lance « Trouver les spots ».'),'ok');
+    if(!SPOTS.length) updateRunnerMarker(); }
 }
 ['start','paceMin','paceSec','calKm','calTime'].forEach(id=>{ const el=$('#'+id); el.onchange=applyLive; el.oninput=applyLive; });
 
