@@ -220,6 +220,7 @@ input[type=range]{width:100%;accent-color:var(--sun);height:4px}
     <label class="check"><input type="checkbox" id="tracks"> inclure pistes / chemins 4x4</label>
 
     <button class="go" id="run" disabled>Trouver les spots</button>
+    <button class="go ghost" id="reset">↺ Réinitialiser</button>
     <div class="status" id="status">Importe une trace pour commencer.</div>
 
     <div class="eyebrow"><span class="n">4</span> Suivi en direct <span style="color:var(--mut2);text-transform:none;letter-spacing:0;font-weight:400">· optionnel</span></div>
@@ -610,6 +611,18 @@ window.removeRavito=(lat,lon)=>{
   setStatus('Ravito retir\u00e9.','ok');
 };
 $('#placeGo').onclick=e=>{e.preventDefault();searchPlace();};
+function resetAll(){
+  RAVITOS=[]; AUTO_SPOTS=[];
+  if(placeMarker){ map.removeLayer(placeMarker); placeMarker=null; } placePos=null; placeName='';
+  if(userMarker){ map.removeLayer(userMarker); userMarker=null; } userPos=null;
+  $('#calKm').value=''; $('#calTime').value='';
+  $('#placeQ').value=''; $('#ravKm').value='';
+  clearSpots();
+  if(trace.length){ drawProfile(); map.fitBounds(traceLine.getBounds(),{padding:[44,44]});
+    setStatus('Remise \u00e0 z\u00e9ro \u2014 trace conserv\u00e9e. Relance \u00ab Trouver les spots \u00bb.','ok'); }
+  else setStatus('Remise \u00e0 z\u00e9ro. Importe une trace pour commencer.','ok');
+}
+$('#reset').onclick=resetAll;
 $('#ravGo').onclick=e=>{e.preventDefault();addRavitoAtKm();};
 $('#ravKm').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addRavitoAtKm(); } });
 $('#placeQ').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); searchPlace(); } });
